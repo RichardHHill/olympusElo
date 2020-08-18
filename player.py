@@ -25,6 +25,9 @@ class Player:
         self.elo = 1000 + (strength - 45) * 200
         self.wins = 0
         self.losses = 0
+        self.point_wins = 0
+        self.game_wins = 0
+        self.set_wins = 0
     
     def __str__(self):
         return "Name: {} Strength: {} Elo: {} Wins: {} Losses: {}".format(
@@ -37,11 +40,14 @@ class Player:
         str1 = self.roll()
         str2 = opponent.roll()
         if str1 > str2:
+            self.point_wins += 1
             return 1
         elif str1 == str2: # break tie
             if random.randrange(2) == 0:
+                self.point_wins += 1
                 return 1
         else:
+            opponent.point_wins += 1
             return 0
 
     def play_game(self, opponent):
@@ -53,6 +59,11 @@ class Player:
             else:
                 s2 += 1
         
+        if s1 > s2:
+            self.game_wins += 1
+        else:
+            opponent.game_wins += 1
+
         return s1 > s2
 
     def play_set(self, opponent):
@@ -64,6 +75,11 @@ class Player:
             else:
                 s2 += 1
 
+        if s1 > s2:
+            self.set_wins += 1
+        else:
+            opponent.set_wins += 1
+
         return s1 > s2
 
     def play_match(self, opponent):
@@ -71,8 +87,19 @@ class Player:
         s += self.play_set(opponent)
 
         if s == 2:
+            self.wins += 1
+            opponent.losses += 1
             return 1
         elif s == 0:
+            self.losses += 1
+            opponent.wins += 1
             return 0
         else:
-            return self.play_set(opponent)
+            if self.play_set(opponent):
+                self.wins += 1
+                opponent.losses += 1
+                return 1
+            else:
+                self.losses += 1
+                opponent.wins += 1
+                return 0

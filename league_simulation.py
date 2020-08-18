@@ -37,7 +37,7 @@ def summarize_season(players):
 
                 act_wins = 0
                 for _ in range(100):
-                    act_wins += p1.play_match(p2)
+                    act_wins += match_scores(p1, p2)
                 
                 score_dif[i] = est_wins - act_wins
                 i += 1
@@ -63,9 +63,48 @@ def pick_good_match(players, opponent_elo):
 
     return np.random.choice(players, p = weights)
 
+def match_scores(p1, p2, mode = None):
+    if mode is None:
+        mode = random.choice(["Match", "Set", "Game", "Point"])
+
+    # start and end number of wins
+    p1_points_start = p1.point_wins
+    p1_games_start = p1.game_wins
+    p1_sets_start = p1.set_wins
+    p2_points_start = p2.point_wins
+    p2_games_start = p2.game_wins
+    p2_sets_start = p2.set_wins
+
+    result = p1.play_match(p2)
+
+    p1_points = p1.point_wins - p1_points_start
+    p1_games = p1.game_wins - p1_games_start
+    p1_sets = p1.set_wins - p1_sets_start
+    p2_points = p2.point_wins - p2_points_start
+    p2_games = p2.game_wins - p2_games_start
+    p2_sets = p2.set_wins - p2_sets_start
+    
+    total_points = p1_points + p2_points
+    total_games = p1_games + p2_games
+    total_sets = p1_sets + p2_sets
+
+    w1 = result
+
+    if mode == "Set":
+        # Winning 2-0 gives a score of 1
+        # Winning 2-1 gives a score of 0.77
+        w1 = w1 * 0.3 + (p1_sets / total_sets) * 0.7
+    elif mode == "Game":
+        w1 = w1 * 0.2 + (p1_sets / total_sets) * 0.3 + (p1_games / total_games) * 0.5
+    elif mode == "Point":
+        w1 = w1 * 0.1 + (p1_sets / total_sets) * 0.2 + (p1_games / total_games) * 0.3 + (p1_points / total_points) * 0.4
+
+    return w1
+
+
 def test_simple_league():
     STARTING_SIZE = 20
-    K_FACTOR = 32
+    K_FACTORS = [24, 28, 36, 48] 
     modes = ["Match", "Set", "Game", "Point"]
 
     all_players = list(
@@ -74,13 +113,13 @@ def test_simple_league():
 
     games_played = 0
 
-    while games_played < 10000:
+    while games_played < 200:
         p1 = random.choice(all_players)
         p2 = pick_good_match(all_players, p1.elo)
         
         if p1 is not p2:
             #TODO other modes 
-            recording_mode = "Match"
+            mode_index = random.randrange(4)
 
             r1 = p1.elo
             r2 = p2.elo
@@ -88,19 +127,11 @@ def test_simple_league():
             e1 = 1 / (1 + 10 ** ((r2 - r1) / 400))
             e2 = 1 / (1 + 10 ** ((r1 - r2) / 400))
 
-            if p1.play_match(p2):
-                s1 = 1
-                s2 = 0
-                p1.wins += 1
-                p2.losses += 1
-            else:
-                s1 = 0
-                s2 = 1
-                p1.losses += 1
-                p2.wins += 1
+            s1 = match_scores(p1, p2, modes[mode_index])
+            s2 = 1 - s1
 
-            p1.elo += K_FACTOR * (s1 - e1)
-            p2.elo += K_FACTOR * (s2 - e2)
+            p1.elo += K_FACTORS[mode_index] * (s1 - e1)
+            p2.elo += K_FACTORS[mode_index] * (s2 - e2)
 
         games_played += 1
 
