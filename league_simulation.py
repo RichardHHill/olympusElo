@@ -24,6 +24,21 @@ def summarize_season(players):
     plt.hist(win_pcts)
     plt.show()
 
+def match_weight(elo1, elo2):
+    if abs(elo1 - elo2) > 300:
+        return 0
+    else:
+        return 300 - abs(elo1 - elo2)
+
+def pick_good_match(players, opponent_elo):
+    """Pick a random opponent with probabilities weighted
+    to those closer in skill"""
+
+    weights = np.array(list(map(lambda x: match_weight(x.elo, opponent_elo), players)))
+    weights = weights / sum(weights)
+
+    return np.random.choice(players, p = weights)
+
 def test_simple_league():
     STARTING_SIZE = 20
     K_FACTOR = 32
@@ -37,7 +52,7 @@ def test_simple_league():
 
     while games_played < 1000:
         p1 = random.choice(all_players)
-        p2 = random.choice(all_players)
+        p2 = pick_good_match(all_players, p1.elo)
         
         if p1 is not p2:
             #TODO other modes 
