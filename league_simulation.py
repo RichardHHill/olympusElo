@@ -22,6 +22,30 @@ def summarize_season(players):
 
     win_pcts = list(map(lambda x: x.wins / (x.wins + x.losses), players))
     plt.hist(win_pcts)
+    plt.title("Win Percentages")
+    plt.xlabel("Win Rate (%)")
+    plt.ylabel("Count")
+    plt.show()
+
+    # Compare elo estimation to how they'd actually do
+    score_dif = [0] * (len(players) ** 2)
+    i = 0
+    for p1 in players:
+        for p2 in players:
+            if p1 is not p2:
+                est_wins = 100 / (1 + 10 ** ((p2.elo - p1.elo) / 400))
+
+                act_wins = 0
+                for _ in range(100):
+                    act_wins += p1.play_match(p2)
+                
+                score_dif[i] = est_wins - act_wins
+                i += 1
+    
+    plt.hist(score_dif)
+    plt.title("Accuracy of Elo Prediction")
+    plt.xlabel("Expected/Actual Difference (%)")
+    plt.ylabel("Count")
     plt.show()
 
 def match_weight(elo1, elo2):
@@ -50,7 +74,7 @@ def test_simple_league():
 
     games_played = 0
 
-    while games_played < 1000:
+    while games_played < 10000:
         p1 = random.choice(all_players)
         p2 = pick_good_match(all_players, p1.elo)
         
