@@ -21,8 +21,9 @@ class Player:
     def __init__(self, name, strength):
         self.name = name
         self.strength = strength
+        self.survey_rating = strength + random.randrange(-1,2)
         # Assumption: Players will rate themselves around where they should be
-        self.elo = 1000 + (strength - 45) * 200
+        self.elo = 1000 + (self.survey_rating - 45) * 100
         self.wins = 0
         self.losses = 0
         self.point_wins = 0
@@ -30,8 +31,8 @@ class Player:
         self.set_wins = 0
     
     def __str__(self):
-        return "Name: {} Strength: {} Elo: {} Wins: {} Losses: {}".format(
-            self.name, self.strength, self.elo, self.wins, self.losses)
+        return "Name: {} Strength: {} Survey: {} Elo: {} Wins: {} Losses: {}".format(
+            self.name, self.strength, self.survey_rating, self.elo, self.wins, self.losses)
 
     def roll(self):
         return random.randrange(self.strength)

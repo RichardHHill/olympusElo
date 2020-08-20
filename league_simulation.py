@@ -20,6 +20,9 @@ def summarize_season(players):
     for player in players:
         print(player)
 
+    # Only chart players who have played at least 5 games
+    players = list(filter(lambda x: x.wins + x.losses > 5, players))
+
     win_pcts = list(map(lambda x: x.wins / (x.wins + x.losses), players))
     plt.hist(win_pcts)
     plt.title("Win Percentages")
@@ -30,9 +33,11 @@ def summarize_season(players):
     # Compare elo estimation to how they'd actually do
     score_dif = [0] * (len(players) ** 2)
     i = 0
-    for p1 in players:
-        for p2 in players:
-            if p1 is not p2:
+    for i in range(len(players)):
+        for j in range(len(players)):
+            if i < j:
+                p1 = players[i]
+                p2 = players[j]
                 est_wins = 100 / (1 + 10 ** ((p2.elo - p1.elo) / 400))
 
                 act_wins = 0
@@ -40,7 +45,7 @@ def summarize_season(players):
                     act_wins += match_scores(p1, p2)
                 
                 score_dif[i] = est_wins - act_wins
-                i += 1
+                
     
     plt.hist(score_dif)
     plt.title("Accuracy of Elo Prediction")
@@ -137,4 +142,87 @@ def test_simple_league():
 
     summarize_season(all_players)
 
-test_simple_league()  
+def survey_weight(p1, p2):
+    """Helper for comparing survey ratings to weight the elo score 
+    of a new player"""
+    if abs(p1.survey_rating - p2.survey_rating) > 1 or p1.wins + p1.losses < 5:
+        return 0
+    else:
+        return 2 - abs(p1.survey_rating - p2.survey_rating)
+
+def guess_elo(players, new_player):
+    """When adding a new player, guess that player's
+    elo based on the elo of players with similar ratings"""
+
+    elo_scores = np.array(list(map(lambda x: x.elo, players)))
+
+    weights = np.array(list(map(
+        lambda x: survey_weight(x, new_player), players)))
+
+    if sum(weights) == 0:
+        return new_player.elo
+    else:
+        weights = weights / sum(weights)
+
+        return sum(weights * elo_scores)
+
+
+def test_league_add_new():
+    STARTING_SIZE = 20
+    K_FACTORS = [24, 28, 36, 48] 
+    modes = ["Match", "Set", "Game", "Point"]
+
+    all_players = list(
+        map(lambda x: Player("p" + str(x), random.randrange(40,51)),
+        range(STARTING_SIZE)))
+
+    games_played = 0
+
+    while games_played < 400:
+        p1 = random.choice(all_players)
+        p2 = pick_good_match(all_players, p1.elo)
+        
+        if p1 is not p2:
+            #TODO other modes 
+            mode_index = random.randrange(4)
+
+            r1 = p1.elo
+            r2 = p2.elo
+
+            e1 = 1 / (1 + 10 ** ((r2 - r1) / 400))
+            e2 = 1 / (1 + 10 ** ((r1 - r2) / 400))
+
+            s1 = match_scores(p1, p2, modes[mode_index])
+            s2 = 1 - s1
+
+            p1_new = p1.wins + p1.losses < 5
+            p2_new = p2.wins + p2.losses < 5
+
+            # New players playing against experienced players
+            # have their scores updated more to help them more 
+            # quickly find their elo rating
+            if p1_new and not p2_new:
+                mult_1, mult_2 = 2, 0.5
+            elif p2_new and not p1_new:
+                mult_1, mult_2 = 0.5, 2
+            else:
+                mult_1, mult_2 = 1, 1
+
+            p1.elo += K_FACTORS[mode_index] * (s1 - e1) * mult_1
+            p2.elo += K_FACTORS[mode_index] * (s2 - e2) * mult_2
+
+            # Add new players randomly
+            if random.randrange(15) == 0:
+                new_player = Player("p" + str(len(all_players)),
+                 random.randrange(40,51))
+
+                new_player.elo = guess_elo(all_players, new_player)
+
+                all_players.append(new_player)
+
+        games_played += 1
+
+    summarize_season(all_players) 
+
+test_simple_league()
+test_league_add_new()
